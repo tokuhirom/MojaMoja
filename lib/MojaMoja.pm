@@ -11,6 +11,7 @@ use Scalar::Util qw/refaddr/;
 use Carp ();
 use Data::Dumper qw/Dumper/;
 use Router::PSGIUtil qw/psgify router_to_app/;
+use Data::Section::Simple ();
 
 our @EXPORT = qw/get put post Delete zigorou res render p Dumper get_data_section/;
 
@@ -51,25 +52,8 @@ sub zigorou() {
 }
 
 sub get_data_section {
-    my $fname = [caller($DATA_SECTION_LEVEL)]->[1];
-    my $data = $CACHE{$KEY}->{__data_section} ||= sub {
-        open my $fh, '<', $fname
-          or die "cannot open file for reading data section($fname): $!";
-        while (my $line = <$fh>) {
-            if ($line =~ /^__(?:END|DATA)__\r?\n/) {
-                my $content = do { local $/; <$fh>};
-                my @data = split /^@@\s+(.+?)\s*\r?\n/m, $content;
-                shift @data; # trailing whitespaces
-                my $all = {};
-                while (@data) {
-                    my ( $name, $content ) = splice @data, 0, 2;
-                    $all->{$name} = $content;
-                }
-                return $all;
-            }
-        }
-        Carp::croak("cannot detect data section from '$fname'");
-    }->();
+    my $pkg = caller($DATA_SECTION_LEVEL);
+    my $data = $CACHE{$KEY}->{__data_section} ||= Data::Section::Simple->new($pkg)->get_data_section;
     return @_ ? $data->{$_[0]} : $data;
 }
 
@@ -83,7 +67,7 @@ sub render {
     };
     package DB;
     local *DB::render = sub {
-        my $coderef = (eval $code);
+        my $coderef = (eval $code); ## no critic
         die "Cannot compile template '$key': $@" if $@;
         $coderef->(@args);
     };
