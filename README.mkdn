@@ -4,7 +4,17 @@ MojaMoja -
 
 # SYNOPSIS
 
+  # in myapp.psgi
   use MojaMoja;
+
+  get '/' => sub {
+  };
+
+  get '/blog/{year}/{month}' => sub {
+     res(200, [], ['display blog content'])
+  };
+
+  zigorou;
 
 # DESCRIPTION
 
