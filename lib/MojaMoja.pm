@@ -10,7 +10,6 @@ use Text::MicroTemplate ();
 use Scalar::Util qw/refaddr/;
 use Carp ();
 use Data::Dumper qw/Dumper/;
-use Data::Section::Simple ();
 use Router::PSGIUtil qw/psgify router_to_app/;
 
 our @EXPORT = qw/get put post Delete zigorou res render p Dumper get_data_section/;
@@ -18,6 +17,7 @@ our @EXPORT = qw/get put post Delete zigorou res render p Dumper get_data_sectio
 my $_ROUTER;
 my %CACHE;
 our $KEY;
+our $DATA_SECTION_LEVEL = 0;
 
 BEGIN {
     no strict 'refs';
@@ -51,13 +51,32 @@ sub zigorou() {
 }
 
 sub get_data_section {
-    my $data = $CACHE{$KEY}->{__data_section} ||= Data::Section::Simple->new('main')->get_data_section();
+    my $fname = [caller($DATA_SECTION_LEVEL)]->[1];
+    my $data = $CACHE{$KEY}->{__data_section} ||= sub {
+        open my $fh, '<', $fname
+          or die "cannot open file for reading data section($fname): $!";
+        while (my $line = <$fh>) {
+            if ($line =~ /^__(?:END|DATA)__\r?\n/) {
+                my $content = do { local $/; <$fh>};
+                my @data = split /^@@\s+(.+?)\s*\r?\n/m, $content;
+                shift @data; # trailing whitespaces
+                my $all = {};
+                while (@data) {
+                    my ( $name, $content ) = splice @data, 0, 2;
+                    $all->{$name} = $content;
+                }
+                return $all;
+            }
+        }
+        Carp::croak("cannot detect data section from '$fname'");
+    }->();
     return @_ ? $data->{$_[0]} : $data;
 }
 
 sub render {
     my ($key, @args) = @_;
     my $code = $CACHE{$KEY}->{$key} ||= do {
+        local $DATA_SECTION_LEVEL = $DATA_SECTION_LEVEL + 1;
         my $tmpl = get_data_section($key);
         Carp::croak("unknown template file:$key") unless $tmpl;
         Text::MicroTemplate->new(template => $tmpl, package_name => 'main')->code();
