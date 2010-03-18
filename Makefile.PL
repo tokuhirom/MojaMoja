@@ -2,7 +2,10 @@ use inc::Module::Install;
 name 'MojaMoja';
 all_from 'lib/MojaMoja.pm';
 
-# requires '';
+requires 'Text::MicroTemplate';
+requires 'Plack';
+requires 'Router::Simple';
+requires 'Data::Section::Simple';
 
 
 readme_markdown_from 'lib/MojaMoja.pm';
