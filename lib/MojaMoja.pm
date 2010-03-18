@@ -4,7 +4,6 @@ use warnings;
 use parent 'Exporter';
 use 5.00800;
 our $VERSION = '0.01';
-use Plack::Request;
 use Plack::Response;
 use Router::Simple;
 use Text::MicroTemplate ();
@@ -12,14 +11,13 @@ use Scalar::Util qw/refaddr/;
 use Carp ();
 use Data::Dumper qw/Dumper/;
 use Data::Section::Simple ();
+use Router::PSGIUtil qw/psgify router_to_app/;
 
-our @EXPORT = qw/get put post Delete zigorou res render req args p Dumper get_data_section/;
+our @EXPORT = qw/get put post Delete zigorou res render p Dumper get_data_section/;
 
 my $_ROUTER;
 my %CACHE;
 our $KEY;
-our $REQ;
-our $ARGS;
 
 BEGIN {
     no strict 'refs';
@@ -27,7 +25,7 @@ BEGIN {
         my $method = uc $meth;
         *{$meth} = sub ($$) {
             my ( $pattern, $code ) = @_;
-            $_ROUTER->connect( $pattern, $code, { method => $method } );
+            $_ROUTER->connect( $pattern, psgify { goto $code }, { method => $method } );
         };
     }
 }
@@ -44,31 +42,11 @@ sub p {
     print STDERR Dumper(@_);
 }
 
-sub req ()  { $REQ }
-sub args () { $ARGS }
-
 sub zigorou() {
-    my $router = $_ROUTER;
+    my $app = router_to_app($_ROUTER);
     return sub {
-        my $env = shift;
-        local $KEY = refaddr $router;
-        local $REQ = Plack::Request->new($env);
-        if (my $p = $router->match($REQ)) {
-            local $ARGS = $p->{args};
-            my $res = $p->{code}->();
-            my $type = ref $res;
-            if ($type eq 'Plack::Response') {
-                return $res->finalize;
-            } elsif ($type eq 'ARRAY') {
-                return $res;
-            } elsif (not defined $res) {
-                Carp::croak("should not return undefined value");
-            } else {
-                return [200, ['Content-Type' => 'text/plain; charset=utf-8'], [$res]];
-            }
-        } else {
-            return [404, ['Content-Type' => 'text/plain'], ['not found']];
-        }
+        local $KEY = refaddr $app;
+        $app->(@_);
     };
 }
 

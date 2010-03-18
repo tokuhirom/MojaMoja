@@ -11,21 +11,25 @@ my $app = do {
     };
 
     get '/blog/{year:[0-9]+}/{month}' => sub {
-        my $args = args();
+        my ($req, $args) = @_;
         return  "$args->{year}-$args->{month}'s blog";
     };
 
     post '/comment' => sub {
-        return "posted '@{[ req->param('body') ]}'";
+        my ($req, $args) = @_;
+        return "posted '@{[ $req->param('body') ]}'";
     };
 
     get '/hoge' => sub {
-        my $name = req->param('name');
+        my ($req, $args) = @_;
+        my $name = $req->param('name');
         render('hoge.mt');
     };
 
     get '/fuga' => sub {
-        render('fuga.mt', req->param('name'));
+        my ($req, $args) = @_;
+        my $name = $req->param('name');
+        render('fuga.mt');
     };
 
     zigorou;
@@ -40,8 +44,8 @@ $mech->post_ok('/comment', {body => 'hi'});
 $mech->content_is("posted 'hi'");
 $mech->get_ok('/hoge?name=dan');
 $mech->content_is("hogehoge dan\n\n");
-$mech->get_ok('/hoge?name=kogai');
-$mech->content_is("hogehoge kogai\n\n");
+$mech->get_ok('/fuga?name=kogai');
+$mech->content_is("fugafuga kogai\n\n");
 
 done_testing;
 
