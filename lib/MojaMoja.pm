@@ -13,24 +13,25 @@ use Data::Dumper qw/Dumper/;
 use Router::PSGIUtil qw/psgify router_to_app/;
 use Data::Section::Simple ();
 
-our @EXPORT = qw/get put post Delete zigorou res render p Dumper get_data_section/;
+our @EXPORT = qw/get post zigorou res render p Dumper get_data_section any/;
 
 my $_ROUTER;
 my %CACHE;
 our $KEY;
 our $DATA_SECTION_LEVEL = 0;
 
-BEGIN {
-    no strict 'refs';
-    for my $meth (qw/get put post Delete/) {
-        my $method = uc $meth;
-        *{$meth} = sub ($$) {
-            my ( $pattern, $code ) = @_;
-            $_ROUTER->connect( $pattern, psgify { goto $code }, { method => $method } );
-        };
-    }
+# any [qw/get post delete/] => '/bye' => sub { ... };
+sub any($$$) {
+    my ($methods, $pattern, $code) = @_;
+    $_ROUTER->connect(
+        $pattern,
+        psgify { goto $code },
+        { method => [ map { uc $_ } @$methods ] }
+    );
 }
 
+sub get  { any(['GET', 'HEAD'], $_[0], $_[1]) }
+sub post { any(['POST'],        $_[0], $_[1]) }
 
 sub import {
     $_ROUTER = Router::Simple->new();
