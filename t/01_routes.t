@@ -32,6 +32,8 @@ my $app = do {
         render('fuga.mt');
     };
 
+    any '/any' => sub { 'any' };
+
     zigorou;
 };
 
@@ -46,6 +48,8 @@ $mech->get_ok('/hoge?name=dan');
 $mech->content_is("hogehoge dan\n\n");
 $mech->get_ok('/fuga?name=kogai');
 $mech->content_is("fugafuga kogai\n\n");
+$mech->get_ok('/any');
+$mech->content_is("any");
 
 done_testing;
 

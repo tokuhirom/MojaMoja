@@ -21,13 +21,22 @@ our $KEY;
 our $DATA_SECTION_LEVEL = 0;
 
 # any [qw/get post delete/] => '/bye' => sub { ... };
-sub any($$$) {
-    my ($methods, $pattern, $code) = @_;
-    $_ROUTER->connect(
-        $pattern,
-        psgify { goto $code },
-        { method => [ map { uc $_ } @$methods ] }
-    );
+# any '/bye' => sub { ... };
+sub any($$;$) {
+    if (@_==3) {
+        my ($methods, $pattern, $code) = @_;
+        $_ROUTER->connect(
+            $pattern,
+            psgify { goto $code },
+            { method => [ map { uc $_ } @$methods ] }
+        );
+    } else {
+        my ($pattern, $code) = @_;
+        $_ROUTER->connect(
+            $pattern,
+            psgify { goto $code },
+        );
+    }
 }
 
 sub get  { any(['GET', 'HEAD'], $_[0], $_[1]) }
